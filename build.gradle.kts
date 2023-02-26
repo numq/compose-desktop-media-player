@@ -18,14 +18,12 @@ repositories {
     maven("https://dl.bintray.com/caprica/vlcj/")
 }
 
-var iconsVersion = "1.1.0"
-var vlcjVersion = "4.8.2"
-
 dependencies {
     testImplementation(kotlin("test"))
     implementation(compose.desktop.currentOs)
-    implementation("org.jetbrains.compose.material:material-icons-extended-desktop:$iconsVersion")
-    implementation("uk.co.caprica:vlcj:$vlcjVersion")
+    implementation("org.jetbrains.compose.material:material-icons-extended-desktop:1.1.0")
+    implementation("uk.co.caprica:vlcj:4.8.2")
+    implementation("org.bytedeco:javacv-platform:1.5.8")
 }
 
 tasks.test {
