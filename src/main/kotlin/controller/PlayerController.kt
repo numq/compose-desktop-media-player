@@ -1,7 +1,8 @@
-package player
+package controller
 
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.flow.StateFlow
+import player.PlayerState
 
 interface PlayerController {
     val preview: StateFlow<ImageBitmap?>
