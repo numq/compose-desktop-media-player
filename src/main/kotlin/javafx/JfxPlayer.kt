@@ -8,12 +8,15 @@ import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import player.PlayerBitmapContainer
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 import player.PlayerComponentContainer
+import player.PlayerFrameContainer
 
 @Composable
 fun JfxPlayer(url: String) {
@@ -42,10 +45,11 @@ fun JfxPlayer(url: String) {
                 componentController.component,
                 componentController
             )
-            1 -> PlayerBitmapContainer(
+            1 -> PlayerFrameContainer(
                 Modifier.weight(1f),
                 url,
-                frameController.bitmap,
+                frameController.size.collectAsState(null).value?.run { IntSize(first, second) } ?: IntSize.Zero,
+                frameController.bytes.collectAsState(null).value,
                 frameController
             )
         }
