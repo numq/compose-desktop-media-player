@@ -18,7 +18,7 @@ import player.PlayerComponentContainer
 @Composable
 fun JfxPlayer(url: String) {
     val componentController = remember(url) { JfxComponentController() }
-    val snapshotController = remember(url) { JfxSnapshotController() }
+    val frameController = remember(url) { JfxFrameController() }
     val (currentTabIndex, setCurrentTabIndex) = remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -32,7 +32,7 @@ fun JfxPlayer(url: String) {
             Tab(currentTabIndex == 1, onClick = {
                 setCurrentTabIndex(1)
             }, text = {
-                Text("Snapshot")
+                Text("Frame")
             })
         }
         when (currentTabIndex) {
@@ -45,8 +45,8 @@ fun JfxPlayer(url: String) {
             1 -> PlayerBitmapContainer(
                 Modifier.weight(1f),
                 url,
-                snapshotController.bitmap,
-                snapshotController
+                frameController.bitmap,
+                frameController
             )
         }
     }
