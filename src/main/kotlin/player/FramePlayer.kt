@@ -2,28 +2,28 @@ package player
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asComposeImageBitmap
+import androidx.compose.ui.unit.IntSize
 import org.jetbrains.skia.Bitmap
 
 @Composable
-fun BitmapComponent(modifier: Modifier = Modifier, controller: PlayerFrameController) {
-    val frameBytes by controller.frameBytes.collectAsState()
+fun FramePlayer(
+    modifier: Modifier = Modifier,
+    size: IntSize,
+    bytes: ByteArray?,
+) {
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-        val (width, height) = constraints.run { Pair(maxWidth, maxHeight) }
-        val bitmap = remember(frameBytes) {
+        val bitmap = remember(size, bytes) {
             Bitmap().apply {
-                allocN32Pixels(width, height, true)
-                frameBytes?.let(::installPixels)
+                allocN32Pixels(size.width, size.height, true)
+                bytes?.let(::installPixels)
             }.asComposeImageBitmap()
         }
-        frameBytes?.run {
-            Image(bitmap, "frame")
-        }
+        bytes?.run { Image(bitmap, "frame") } ?: CircularProgressIndicator()
     }
 }

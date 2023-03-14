@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import java.awt.Component
 
 @Composable
-fun PlayerComponent(modifier: Modifier = Modifier, component: Component) {
+fun ComponentPlayer(modifier: Modifier = Modifier, component: Component) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         SwingPanel(
             background = Color.Transparent,

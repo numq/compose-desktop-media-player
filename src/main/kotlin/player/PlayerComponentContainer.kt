@@ -31,7 +31,7 @@ fun PlayerComponentContainer(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        PlayerComponent(Modifier.weight(1f), component)
+        ComponentPlayer(Modifier.weight(1f), component)
         DefaultControls(Modifier.fillMaxWidth(), controller)
     }
 }
