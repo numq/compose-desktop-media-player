@@ -23,7 +23,6 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.compose.material:material-icons-extended-desktop:1.1.0")
     implementation("uk.co.caprica:vlcj:4.8.2")
-    implementation("org.bytedeco:javacv-platform:1.5.8")
 }
 
 tasks.test {
