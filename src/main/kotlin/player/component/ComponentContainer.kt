@@ -1,4 +1,4 @@
-package player
+package player.component
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import java.awt.Component
 
 @Composable
-fun ComponentPlayer(modifier: Modifier = Modifier, component: Component) {
+fun ComponentContainer(modifier: Modifier = Modifier, component: Component) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         SwingPanel(
             background = Color.Transparent,

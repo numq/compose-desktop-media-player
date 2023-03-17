@@ -6,7 +6,7 @@ sealed class Destination constructor(val title: String) {
     abstract fun updateUrl(url: String): Destination
 
     companion object {
-        val values = arrayOf(Jfx(), Vlcj(), Jcv())
+        val values = arrayOf(Jfx(), Vlcj())
     }
 
     data class Jfx(override val url: String = "") : Destination("Jfx") {
@@ -14,10 +14,6 @@ sealed class Destination constructor(val title: String) {
     }
 
     data class Vlcj(override val url: String = "") : Destination("Vlcj") {
-        override fun updateUrl(url: String) = copy(url = url)
-    }
-
-    data class Jcv(override val url: String = "") : Destination("JavaCV") {
         override fun updateUrl(url: String) = copy(url = url)
     }
 }

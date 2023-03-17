@@ -1,4 +1,4 @@
-package player
+package player.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,11 +8,12 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import controller.PlayerController
+import player.PlayerController
+import player.DefaultControls
 import java.awt.Component
 
 @Composable
-fun PlayerComponentContainer(
+fun ComponentPlayer(
     modifier: Modifier = Modifier,
     url: String,
     component: Component,
@@ -31,7 +32,7 @@ fun PlayerComponentContainer(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        ComponentPlayer(Modifier.weight(1f), component)
+        ComponentContainer(Modifier.weight(1f), component)
         DefaultControls(Modifier.fillMaxWidth(), controller)
     }
 }

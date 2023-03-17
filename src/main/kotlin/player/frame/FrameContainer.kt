@@ -1,4 +1,4 @@
-package player
+package player.frame
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.IntSize
 import org.jetbrains.skia.Bitmap
 
 @Composable
-fun FramePlayer(
+fun FrameContainer(
     modifier: Modifier = Modifier,
     size: IntSize,
     bytes: ByteArray?,

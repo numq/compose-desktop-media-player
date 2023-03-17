@@ -6,15 +6,19 @@ import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import input.Input
-import javacv.JcvPlayer
-import javafx.JfxPlayer
-import vlcj.VlcjPlayer
+import javafx.JfxComponentController
+import javafx.JfxFrameController
+import player.PlayerSource
+import vlcj.VlcjComponentController
+import vlcj.VlcjFrameController
 
 @Composable
 fun Navigation() {
@@ -35,9 +39,34 @@ fun Navigation() {
             verticalArrangement = Arrangement.SpaceBetween) {
             Box(Modifier.weight(1f)) {
                 when (destination) {
-                    is Destination.Jfx -> JfxPlayer(destination.url)
-                    is Destination.Vlcj -> VlcjPlayer(destination.url)
-                    is Destination.Jcv -> JcvPlayer(destination.url)
+                    is Destination.Jfx -> {
+                        val componentController = remember(destination.url) { JfxComponentController() }
+                        val frameController = remember(destination.url) { JfxFrameController() }
+                        PlayerSource(
+                            destination.url,
+                            componentController.component,
+                            componentController,
+                            frameController.size.collectAsState(null).value?.run {
+                                IntSize(first, second)
+                            } ?: IntSize.Zero,
+                            frameController.bytes.collectAsState(null).value,
+                            frameController
+                        )
+                    }
+                    is Destination.Vlcj -> {
+                        val componentController = remember(destination.url) { VlcjComponentController() }
+                        val frameController = remember(destination.url) { VlcjFrameController() }
+                        PlayerSource(
+                            destination.url,
+                            componentController.component,
+                            componentController,
+                            frameController.size.collectAsState(null).value?.run {
+                                IntSize(first, second)
+                            } ?: IntSize.Zero,
+                            frameController.bytes.collectAsState(null).value,
+                            frameController
+                        )
+                    }
                 }
             }
             Input {

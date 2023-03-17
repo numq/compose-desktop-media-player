@@ -1,11 +1,8 @@
-package controller
+package player
 
-import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.flow.StateFlow
-import player.PlayerState
 
 interface PlayerController {
-    val preview: StateFlow<ImageBitmap?>
     val state: StateFlow<PlayerState>
     fun load(url: String)
     fun play()
@@ -15,5 +12,4 @@ interface PlayerController {
     fun seekTo(timestamp: Long)
     fun setVolume(value: Float)
     fun toggleSound()
-    fun updatePreview()
 }

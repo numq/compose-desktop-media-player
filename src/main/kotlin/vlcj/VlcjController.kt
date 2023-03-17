@@ -1,32 +1,36 @@
 package vlcj
 
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
-import com.sun.jna.NativeLibrary
-import controller.PlayerController
+import com.sun.jna.NativeLibrary.addSearchPath
 import exception.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import player.PlayerController
 import player.PlayerState
 import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
-import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
+import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer
 import java.nio.file.Paths
 import kotlin.io.path.pathString
 
 class VlcjController : PlayerController {
 
     init {
-        NativeLibrary.addSearchPath(
+        addSearchPath(
             RuntimeUtil.getLibVlcLibraryName(),
             Paths.get(System.getProperty("user.dir"), "lib", "libvlc.dll").pathString
         )
         NativeDiscovery().discover()
     }
+
+    internal val factory by lazy { MediaPlayerFactory() }
+
+    internal var player: EmbeddedMediaPlayer? = null
+        private set
 
     private val stateListener = object : MediaPlayerEventAdapter() {
         override fun mediaPlayerReady(mediaPlayer: MediaPlayer) {
@@ -63,25 +67,16 @@ class VlcjController : PlayerController {
         }
     }
 
-    internal val embeddedComponent = EmbeddedMediaPlayerComponent()
-
-    private var player: MediaPlayer? = null
-
-    private val _preview = MutableStateFlow<ImageBitmap?>(null)
-
-    override val preview: StateFlow<ImageBitmap?>
-        get() = _preview.asStateFlow()
-
     private val _state = MutableStateFlow(PlayerState())
 
     override val state: StateFlow<PlayerState>
         get() = _state.asStateFlow()
 
     override fun load(url: String) = catch {
-        dispose()
-        player = embeddedComponent.mediaPlayer()
-        player?.events()?.addMediaPlayerEventListener(stateListener)
-        player?.media()?.startPaused(url)
+        player = factory.mediaPlayers()?.newEmbeddedMediaPlayer()?.apply {
+            events()?.addMediaPlayerEventListener(stateListener)
+            media()?.prepare(url)
+        }
     }
 
     override fun play() = catch {
@@ -114,13 +109,5 @@ class VlcjController : PlayerController {
 
     override fun toggleSound() = catch {
         player?.audio()?.mute()
-    }
-
-    override fun updatePreview() = catch {
-        player?.video()?.videoDimension()?.run { Pair(width, height) }?.let { (width, height) ->
-            player?.snapshots()?.get(width, height)?.toComposeImageBitmap()?.let {
-                _preview.value = it
-            }
-        }
     }
 }
