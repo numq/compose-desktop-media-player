@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import input.Input
+import player.Input
 import javafx.JfxComponentController
 import javafx.JfxFrameController
 import player.PlayerSource

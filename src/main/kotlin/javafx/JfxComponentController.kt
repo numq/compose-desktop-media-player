@@ -7,7 +7,7 @@ import javafx.scene.Scene
 import javafx.scene.layout.StackPane
 import javafx.scene.media.MediaView
 import player.PlayerController
-import renderer.ComponentRenderer
+import player.component.ComponentRenderer
 import java.awt.Dimension
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent

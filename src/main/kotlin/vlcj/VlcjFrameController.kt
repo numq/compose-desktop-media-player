@@ -3,7 +3,7 @@ package vlcj
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import player.PlayerController
-import renderer.FrameRenderer
+import player.frame.FrameRenderer
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback

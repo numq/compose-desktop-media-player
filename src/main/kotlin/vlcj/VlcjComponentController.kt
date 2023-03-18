@@ -1,7 +1,7 @@
 package vlcj
 
 import player.PlayerController
-import renderer.ComponentRenderer
+import player.component.ComponentRenderer
 import java.awt.Canvas
 
 class VlcjComponentController constructor(

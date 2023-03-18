@@ -1,8 +1,7 @@
 package player.component
 
-import player.PlayerController
 import java.awt.Component
 
-interface ComponentController : PlayerController {
+interface ComponentRenderer {
     val component: Component
 }

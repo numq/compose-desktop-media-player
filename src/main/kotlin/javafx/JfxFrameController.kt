@@ -8,7 +8,7 @@ import com.sun.media.jfxmedia.events.VideoRendererListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import player.PlayerController
-import renderer.FrameRenderer
+import player.frame.FrameRenderer
 import java.nio.ByteBuffer
 
 class JfxFrameController constructor(

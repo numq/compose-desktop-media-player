@@ -1,4 +1,4 @@
-package input
+package player
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

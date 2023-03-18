@@ -1,4 +1,4 @@
-package renderer
+package player.frame
 
 import kotlinx.coroutines.flow.StateFlow
 
