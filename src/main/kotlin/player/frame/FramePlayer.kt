@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
-import player.PlayerController
 import player.DefaultControls
+import player.PlayerController
 
 @Composable
 fun FramePlayer(
@@ -20,10 +19,8 @@ fun FramePlayer(
     bytes: ByteArray?,
     controller: PlayerController,
 ) {
-    LaunchedEffect(url) {
-        if (url.isNotBlank()) controller.load(url)
-    }
     DisposableEffect(url) {
+        if (url.isNotBlank()) controller.load(url)
         onDispose {
             controller.dispose()
         }
