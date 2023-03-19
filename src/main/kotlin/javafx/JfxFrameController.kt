@@ -52,10 +52,10 @@ class JfxFrameController constructor(
     override fun load(url: String) {
         controller.load(url)
         controller.player?.run {
-            embeddedPlayer = javaClass.getDeclaredMethod("retrieveJfxPlayer").apply {
-                isAccessible = true
-            }.invoke(this) as? MediaPlayer
             setOnReady {
+                embeddedPlayer = javaClass.getDeclaredMethod("retrieveJfxPlayer").apply {
+                    isAccessible = true
+                }.invoke(this) as? MediaPlayer
                 embeddedPlayer?.videoRenderControl?.addVideoRendererListener(rendererListener)
             }
             setOnHalted {

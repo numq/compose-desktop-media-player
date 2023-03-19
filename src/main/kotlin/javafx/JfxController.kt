@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import player.PlayerController
 import player.PlayerState
-import java.io.File
 import kotlin.math.roundToLong
 
 class JfxController : PlayerController {
@@ -38,7 +37,7 @@ class JfxController : PlayerController {
     }
 
     override fun load(url: String) = catch {
-        player = MediaPlayer(Media(File(url).toURI().toASCIIString())).apply {
+        player = MediaPlayer(Media(url)).apply {
             volume = .5
             statusProperty()?.addListener(statusListener)
             currentTimeProperty()?.addListener(currentTimeListener)
