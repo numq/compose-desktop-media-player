@@ -19,10 +19,8 @@ fun ComponentPlayer(
     controller: PlayerController,
 ) {
     DisposableEffect(url) {
-        if (url.isNotBlank()) controller.load(url)
-        onDispose {
-            controller.dispose()
-        }
+        controller.load(url)
+        onDispose { controller.dispose() }
     }
     Column(
         modifier,

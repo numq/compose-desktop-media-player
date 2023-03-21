@@ -13,12 +13,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import player.Input
 import javafx.JfxComponentController
 import javafx.JfxFrameController
+import player.PlayerInput
 import player.PlayerSource
 import vlcj.VlcjComponentController
 import vlcj.VlcjFrameController
+import java.io.File
+import java.net.URI
 
 @Composable
 fun Navigation() {
@@ -43,7 +45,9 @@ fun Navigation() {
                         val componentController = remember(destination.url) { JfxComponentController() }
                         val frameController = remember(destination.url) { JfxFrameController() }
                         PlayerSource(
-                            destination.url,
+                            destination.url.run {
+                                (runCatching(URI::create).getOrNull() ?: File(this).toURI()).toString()
+                            },
                             componentController.component,
                             componentController,
                             frameController.size.collectAsState(null).value?.run {
@@ -69,7 +73,7 @@ fun Navigation() {
                     }
                 }
             }
-            Input {
+            PlayerInput {
                 setDestination(destination.updateUrl(it))
             }
         }
