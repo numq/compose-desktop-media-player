@@ -26,8 +26,8 @@ javafx {
 }
 ```
 
-- [AWT component](./src/main/kotlin/javafx)
-- [Frame grabbing](./src/main/kotlin/javafx)
+- [AWT component](https://github.com/numq/jetpack-compose-desktop-media-player/blob/master/src/main/kotlin/javafx/JfxComponentController.kt)
+- [Frame grabbing](https://github.com/numq/jetpack-compose-desktop-media-player/blob/master/src/main/kotlin/javafx/JfxFrameController.kt)
 
 ### [VLCJ](https://github.com/caprica/vlcj)
 
@@ -35,5 +35,5 @@ javafx {
 implementation("uk.co.caprica:vlcj:4.8.2")
 ```
 
-- [AWT component](./src/main/kotlin/vlcj)
-- [Frame grabbing](./src/main/kotlin/vlcj)
+- [AWT component](https://github.com/numq/jetpack-compose-desktop-media-player/blob/master/src/main/kotlin/vlcj/VlcjComponentController.kt)
+- [Frame grabbing](https://github.com/numq/jetpack-compose-desktop-media-player/blob/master/src/main/kotlin/vlcj/VlcjFrameController.kt)
