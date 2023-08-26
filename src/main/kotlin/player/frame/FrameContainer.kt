@@ -4,6 +4,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,13 +19,25 @@ fun FrameContainer(
     size: IntSize,
     bytes: ByteArray?,
 ) {
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-        val bitmap = remember(size, bytes) {
-            Bitmap().apply {
+    val bitmap by remember(size) {
+        derivedStateOf {
+            if (size.width > 0 && size.height > 0) Bitmap().apply {
                 allocN32Pixels(size.width, size.height, true)
-                bytes?.let(::installPixels)
-            }.asComposeImageBitmap()
+            }
+            else null
         }
-        bytes?.run { Image(bitmap, "frame") } ?: CircularProgressIndicator()
+    }
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+        bitmap?.let { bitmap ->
+            bytes?.let { bytes ->
+                Image(
+                    bitmap = bitmap.run {
+                        installPixels(bytes)
+                        asComposeImageBitmap()
+                    },
+                    contentDescription = "frame"
+                )
+            }
+        } ?: CircularProgressIndicator()
     }
 }
