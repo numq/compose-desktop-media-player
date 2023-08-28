@@ -10,6 +10,13 @@ provided by Jetpack Compose `SwingPanel`.
 
 ### Frame grabbing
 
+> Using a byte array of pixels as the key of the **remember** function will result in an **exponential memory leak** due
+> to comparing by reference and creating a new key, which will result in an accumulation of unused values!
+> ```kotlin
+>    remember(pixels) // don't do this!
+>    remember(pixels.contentHashCode()) // do this instead
+> ```
+
 A more flexible method that captures video frames as an array of bytes, converts to the required format, and then
 displays.
 
