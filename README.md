@@ -1,3 +1,10 @@
+<div style="display:flex;align-items:center;justify-content:start;">
+<img src="media/klarity-logo.png" width="64" alt="klarity-logo"/>
+<a href="https://github.com/numq/Klarity">Check out the Klarity Media Player Library for Jetpack Compose Desktop</a>
+</div>
+
+___
+
 ## About
 
 This repository includes various media player implementation methods that can be useful if you want to add multimedia
