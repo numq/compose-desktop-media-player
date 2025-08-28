@@ -1,15 +1,16 @@
 package io.github.numq.cdmp.preview
 
 import io.github.numq.cdmp.feature.Feature
-import io.github.numq.cdmp.rendering.RenderTargetType
+import io.github.numq.cdmp.playback.PlaybackState
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.koin.ext.getFullName
 
 class PreviewFeature(
-    reducer: PreviewReducer, renderTargetType: RenderTargetType
+    reducer: PreviewReducer, initialPlaybackState: PlaybackState
 ) : Feature<PreviewCommand, PreviewState, PreviewEvent>(
-    initialState = PreviewState(renderTargetType = renderTargetType),
+    initialState = PreviewState(playbackState = initialPlaybackState),
     coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
     reducer = reducer
 ) {
@@ -25,11 +26,9 @@ class PreviewFeature(
                 jobs[key]?.cancel()
 
                 when (event) {
-                    is PreviewEvent.CollectPlayerState -> launch {
-                        event.playerState.collectLatest { playerState ->
-                            execute(PreviewCommand.HandlePlayerState(playerState = playerState))
-                        }
-                    }
+                    is PreviewEvent.CollectPlaybackState -> event.playbackState.onEach { playbackState ->
+                        execute(PreviewCommand.HandlePlaybackState(playbackState = playbackState))
+                    }.launchIn(this)
 
                     else -> null
                 }?.let { job ->

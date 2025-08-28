@@ -7,7 +7,8 @@ kotlin = "2.2.0"
 kotlinx-coroutines = "1.10.2"
 koin = "4.1.0"
 javafx = "21"
-vlcj = "4.8.2"
+vlcj = "4.11.0"
+vlcj-natives = "4.8.3"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -24,6 +25,7 @@ javafx-graphics = { module = "org.openjfx:javafx-graphics", version.ref = "javaf
 javafx-media = { module = "org.openjfx:javafx-media", version.ref = "javafx" }
 javafx-swing = { module = "org.openjfx:javafx-swing", version.ref = "javafx" }
 vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
+vlcj-natives = { module = "uk.co.caprica:vlcj-natives", version.ref = "vlcj-natives" }
 
 [plugins]
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }

@@ -13,7 +13,7 @@ import javax.swing.JPanel
 @Composable
 fun VlcjPlayerComponent(renderTarget: RenderTarget.Vlcj) {
     when (renderTarget) {
-        is RenderTarget.Vlcj.Swing -> SwingPanel(
+        is RenderTarget.Vlcj.Awt -> SwingPanel(
             background = Color.Black, factory = {
                 JPanel(BorderLayout()).apply {
                     add(renderTarget.canvas, BorderLayout.CENTER)
@@ -22,8 +22,7 @@ fun VlcjPlayerComponent(renderTarget: RenderTarget.Vlcj) {
         )
 
         is RenderTarget.Vlcj.Skia -> BufferRendererComponent(
-            modifier = Modifier.fillMaxSize(),
-            bufferRenderer = renderTarget.bufferRenderer
+            modifier = Modifier.fillMaxSize(), bufferRenderer = renderTarget.bufferRenderer
         )
     }
 }

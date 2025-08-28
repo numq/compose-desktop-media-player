@@ -14,24 +14,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.numq.cdmp.playback.PlaybackState
 import io.github.numq.cdmp.preview.PreviewPlaybackSpeed
-import io.github.numq.cdmp.rendering.RenderTargetType
 import io.github.numq.cdmp.timestamp.formatTimestamp
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun PlayerControls(
-    playerState: PlayerState,
-    isRenderTargetTypeChangeable: Boolean,
+    playbackState: PlaybackState,
     isOverlaySupported: Boolean,
-    renderTargetType: RenderTargetType,
-    onRenderTargetTypeChange: (RenderTargetType) -> Unit,
-    changePlaybackSpeed: (factor: Float) -> Unit,
-    changeVolume: (value: Float) -> Unit,
-    toggleMute: (isMuted: Boolean) -> Unit,
+    increasePlaybackSpeed: () -> Unit,
+    decreasePlaybackSpeed: () -> Unit,
+    resetPlaybackSpeed: () -> Unit,
+    changeVolume: (Float) -> Unit,
+    toggleMute: () -> Unit,
     play: () -> Unit,
     pause: () -> Unit,
     resume: () -> Unit,
@@ -46,45 +44,8 @@ fun PlayerControls(
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = if (isOverlaySupported) .5f else 1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(
-                        space = 8.dp, alignment = Alignment.CenterHorizontally
-                    ), verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        Text(
-                            (playerState.status as? PlayerStatus.Ready)?.media?.location ?: "",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(
-                            space = 8.dp, alignment = Alignment.CenterHorizontally
-                        ), verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(RenderTargetType.SKIA.displayName)
-                        Switch(
-                            checked = isRenderTargetTypeChangeable && renderTargetType == RenderTargetType.SWING,
-                            onCheckedChange = {
-                                onRenderTargetTypeChange(
-                                    when (renderTargetType) {
-                                        RenderTargetType.SKIA -> RenderTargetType.SWING
-
-                                        RenderTargetType.SWING -> RenderTargetType.SKIA
-                                    }
-                                )
-                            },
-                            enabled = isRenderTargetTypeChangeable
-                        )
-                        Text(RenderTargetType.SWING.displayName)
-                    }
-                }
-            }
             if (!isOverlaySupported) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     content()
@@ -97,15 +58,16 @@ fun PlayerControls(
                     verticalArrangement = Arrangement.spacedBy(space = 8.dp, alignment = Alignment.CenterVertically)
                 ) {
                     Slider(
-                        value = (playerState.status as? PlayerStatus.Ready)?.timestamp?.inWholeMilliseconds?.toFloat()
+                        value = (playbackState.playerStatus as? PlayerStatus.Ready)?.timestamp?.inWholeMilliseconds?.toFloat()
                             ?: 0f,
                         onValueChange = {
                             seekTo(it.toLong().milliseconds)
                         },
-                        valueRange = 0f..((playerState.status as? PlayerStatus.Ready)?.media?.duration?.inWholeMilliseconds?.toFloat()
+                        valueRange = 0f..((playbackState.playerStatus as? PlayerStatus.Ready)?.media?.duration?.inWholeMilliseconds?.toFloat()
                             ?: 1f),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = playerState.status is PlayerStatus.Ready
+                        modifier = Modifier.fillMaxWidth().alpha(
+                            if (playbackState.playerStatus is PlayerStatus.Ready) 1f else 0f
+                        )
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -119,7 +81,7 @@ fun PlayerControls(
                         ) {
                             Box(modifier = Modifier.weight(.5f), contentAlignment = Alignment.CenterStart) {
                                 Text(
-                                    (playerState.status as? PlayerStatus.Ready)?.timestamp?.inWholeMilliseconds?.formatTimestamp()
+                                    (playbackState.playerStatus as? PlayerStatus.Ready)?.timestamp?.inWholeMilliseconds?.formatTimestamp()
                                         ?: ""
                                 )
                             }
@@ -127,9 +89,15 @@ fun PlayerControls(
                                 SingleChoiceSegmentedButtonRow {
                                     PreviewPlaybackSpeed.entries.forEachIndexed { index, playbackSpeed ->
                                         SegmentedButton(
-                                            selected = playbackSpeed.factor == playerState.playbackSpeedFactor,
+                                            selected = playbackSpeed.factor == playbackState.playbackSpeedFactor,
                                             onClick = {
-                                                changePlaybackSpeed(playbackSpeed.factor)
+                                                when (playbackSpeed.factor) {
+                                                    .5f -> decreasePlaybackSpeed()
+
+                                                    1f -> resetPlaybackSpeed()
+
+                                                    2f -> increasePlaybackSpeed()
+                                                }
                                             },
                                             shape = MaterialTheme.shapes.extraSmall,
                                             label = {
@@ -144,24 +112,26 @@ fun PlayerControls(
                             }
                         }
                         Row(
-                            modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(
+                            modifier = Modifier.weight(1f).alpha(
+                                if (playbackState.playerStatus is PlayerStatus.Ready) 1f else 0f
+                            ), horizontalArrangement = Arrangement.spacedBy(
                                 space = 8.dp, alignment = Alignment.CenterHorizontally
                             ), verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
                                 onClick = stop,
-                                enabled = playerState.status !is PlayerStatus.Ready.Stopped,
-                                modifier = Modifier.alpha(if (playerState.status !is PlayerStatus.Ready.Stopped) 1f else .5f)
+                                enabled = playbackState.playerStatus !is PlayerStatus.Ready.Stopped,
+                                modifier = Modifier.alpha(if (playbackState.playerStatus !is PlayerStatus.Ready.Stopped) 1f else .5f)
                             ) {
                                 Icon(Icons.Default.Stop, null, tint = MaterialTheme.colorScheme.onSurface)
                             }
-                            when (playerState.status) {
+                            when (playbackState.playerStatus) {
                                 is PlayerStatus.Ready.Playing -> IconButton(onClick = pause) {
                                     Icon(Icons.Default.Pause, null, tint = MaterialTheme.colorScheme.onSurface)
                                 }
 
                                 else -> IconButton(onClick = {
-                                    when (playerState.status) {
+                                    when (playbackState.playerStatus) {
                                         is PlayerStatus.Ready.Paused -> resume()
 
                                         is PlayerStatus.Ready.Stopped -> play()
@@ -186,7 +156,7 @@ fun PlayerControls(
                         ) {
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                 Text(
-                                    playerState.status::class.simpleName.toString(),
+                                    playbackState.playerStatus::class.simpleName.toString(),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -196,28 +166,23 @@ fun PlayerControls(
                                         space = 8.dp, alignment = Alignment.CenterHorizontally
                                     ), verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(onClick = {
-                                        toggleMute(!playerState.isMuted)
-                                    }) {
+                                    IconButton(onClick = toggleMute) {
                                         Icon(
                                             when {
-                                                playerState.isMuted -> Icons.AutoMirrored.Filled.VolumeMute
+                                                playbackState.isMuted -> Icons.AutoMirrored.Filled.VolumeMute
 
-                                                playerState.volume == 0f -> Icons.AutoMirrored.Filled.VolumeOff
+                                                playbackState.volume == 0f -> Icons.AutoMirrored.Filled.VolumeOff
 
-                                                playerState.volume < .5f -> Icons.AutoMirrored.Filled.VolumeDown
+                                                playbackState.volume < .5f -> Icons.AutoMirrored.Filled.VolumeDown
 
                                                 else -> Icons.AutoMirrored.Filled.VolumeUp
                                             }, null, tint = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Slider(
-                                        value = playerState.volume,
-                                        onValueChange = {
-                                            changeVolume(it)
-                                        },
-                                        modifier = Modifier.width(128.dp),
-                                        enabled = playerState.status is PlayerStatus.Ready
+                                        value = playbackState.volume,
+                                        onValueChange = changeVolume,
+                                        modifier = Modifier.width(128.dp)
                                     )
                                 }
                             }

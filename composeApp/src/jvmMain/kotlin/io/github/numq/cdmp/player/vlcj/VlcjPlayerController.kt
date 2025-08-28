@@ -4,18 +4,20 @@ import io.github.numq.cdmp.player.PlayerController
 import io.github.numq.cdmp.player.PlayerMedia
 import io.github.numq.cdmp.player.PlayerStatus
 import io.github.numq.cdmp.rendering.BufferRenderer
+import io.github.numq.cdmp.rendering.RenderBackend
 import io.github.numq.cdmp.rendering.RenderTarget
-import io.github.numq.cdmp.rendering.RenderTargetType
-import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
+import uk.co.caprica.vlcj.media.MediaParsedStatus
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback
+import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback
 import java.awt.Canvas
 import java.nio.ByteBuffer
 import java.util.*
@@ -25,17 +27,19 @@ import kotlin.time.Duration.Companion.seconds
 
 
 class VlcjPlayerController(
-    private val mediaPlayerFactory: MediaPlayerFactory, private val mediaPlayer: EmbeddedMediaPlayer
+    private val canvas: Canvas,
+    private val mediaPlayerFactory: MediaPlayerFactory,
+    private val mediaPlayer: EmbeddedMediaPlayer
 ) : PlayerController() {
-    private val canvas = Canvas()
-
     private val eventListener = object : MediaPlayerEventAdapter() {
         override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
-            updateTimestamp(newTime.milliseconds)
+            if (playerStatus.value is PlayerStatus.Ready) {
+                updateTimestamp(newTime.milliseconds)
+            }
         }
 
         override fun finished(mediaPlayer: MediaPlayer) {
-            (state.value.status as? PlayerStatus.Ready)?.run {
+            (playerStatus.value as? PlayerStatus.Ready)?.media?.let { media ->
                 updateStatus(PlayerStatus.Ready.Completed(media = media))
             }
         }
@@ -45,33 +49,53 @@ class VlcjPlayerController(
         }
     }
 
-    override suspend fun setRenderTargetController(target: RenderTarget) = runCatching {
-        when (target) {
-            is RenderTarget.Vlcj.Swing -> {
-                mediaPlayer.videoSurface().set(mediaPlayerFactory.videoSurfaces().newVideoSurface(canvas))
+    init {
+        mediaPlayer.events().addMediaPlayerEventListener(eventListener)
 
-                target
-            }
+        mediaPlayer.videoSurface().set(mediaPlayerFactory.videoSurfaces().newVideoSurface(canvas))
+    }
 
+    override suspend fun setRenderTargetController(renderTarget: RenderTarget) = runCatching {
+        when (val currentRenderTarget = this.renderTarget.value) {
+            is RenderTarget.Vlcj.Skia -> currentRenderTarget.bufferRenderer.close()
+
+            is RenderTarget.Vlcj.Awt -> mediaPlayer.videoSurface().set(null)
+
+            else -> Unit
+        }
+
+        when (renderTarget) {
             is RenderTarget.Vlcj.Skia -> {
-                val videoSurface = mediaPlayerFactory.videoSurfaces().newVideoSurface(
-                    object : BufferFormatCallback {
-                        override fun getBufferFormat(sourceWidth: Int, sourceHeight: Int): BufferFormat {
-                            val alignment = 32
+                val bufferFormatCallback = object : BufferFormatCallback {
+                    override fun getBufferFormat(sourceWidth: Int, sourceHeight: Int): BufferFormat {
+                        val width = renderTarget.bufferRenderer.width
 
-                            val bytesPerPixel = 4
+                        val height = renderTarget.bufferRenderer.height
 
-                            val width = target.bufferRenderer.width
+                        val alignment = 32
 
-                            val height = target.bufferRenderer.height
+                        val bytesPerPixel = 4
 
-                            val pitch = ((width * bytesPerPixel + alignment - 1) / alignment) * alignment
+                        val pitch = ((width * bytesPerPixel + alignment - 1) / alignment) * alignment
 
-                            return BufferFormat("BGRA", width, height, intArrayOf(pitch), intArrayOf(height))
-                        }
+                        return BufferFormat("BGRA", width, height, intArrayOf(pitch), intArrayOf(height))
+                    }
 
-                        override fun allocatedBuffers(buffers: Array<out ByteBuffer>) = Unit
-                    }, { mediaPlayer, nativeBuffers, bufferFormat ->
+                    override fun newFormatSize(
+                        bufferWidth: Int, bufferHeight: Int, displayWidth: Int, displayHeight: Int
+                    ) = Unit
+
+                    override fun allocatedBuffers(buffers: Array<out ByteBuffer>) = Unit
+                }
+
+                val renderCallback = object : RenderCallback {
+                    override fun display(
+                        mediaPlayer: MediaPlayer,
+                        nativeBuffers: Array<out ByteBuffer>,
+                        bufferFormat: BufferFormat,
+                        displayWidth: Int,
+                        displayHeight: Int
+                    ) {
                         nativeBuffers.firstOrNull()?.let { buffer ->
                             val width = bufferFormat.width
 
@@ -94,67 +118,73 @@ class VlcjPlayerController(
                             buffer.rewind()
 
                             pixels
-                        }?.let { bytes ->
-                            target.bufferRenderer.render(bytes = bytes)
-                        }
-                    }, true
+                        }?.let(renderTarget.bufferRenderer::render)
+                    }
+
+                    override fun lock(mediaPlayer: MediaPlayer) = Unit
+
+                    override fun unlock(mediaPlayer: MediaPlayer) = Unit
+                }
+
+                val videoSurface = mediaPlayerFactory.videoSurfaces().newVideoSurface(
+                    bufferFormatCallback, renderCallback, true
                 )
 
                 mediaPlayer.videoSurface().set(videoSurface)
-
-                target
             }
 
-            else -> {
-                mediaPlayer.videoSurface().set(null)
+            is RenderTarget.Vlcj.Awt -> mediaPlayer.videoSurface().set(
+                mediaPlayerFactory.videoSurfaces().newVideoSurface(canvas)
+            )
 
-                (renderTarget.value as? RenderTarget.Vlcj.Skia)?.bufferRenderer?.close()
-
-                RenderTarget.None
-            }
+            else -> Unit
         }
     }
 
     override suspend fun changePlaybackSpeedController(factor: Float) = runCatching {
-        check(mediaPlayer.controls().setRate(factor.coerceIn(.5f, 2f))) { "Unable to change playback speed" }
+        check(mediaPlayer.controls().setRate(factor)) { "Unable to change playback speed" }
     }
 
-    override suspend fun changeVolumeController(value: Float) = runCatching {
-        check(mediaPlayer.audio().setVolume((value * 100).toInt())) { "Unable to change volume" }
+    override suspend fun changeVolumeController(volume: Float) = runCatching {
+        check(mediaPlayer.audio().setVolume((volume * 100).toInt())) { "Unable to change volume" }
     }
 
-    override suspend fun toggleMuteController(isMuted: Boolean) = runCatching {
+    override suspend fun changeMuteController(isMuted: Boolean) = runCatching {
         mediaPlayer.audio().isMute = isMuted
     }
 
-    override suspend fun prepareController(location: String, renderTargetType: RenderTargetType) = runCatching {
+    override suspend fun prepareController(
+        location: String, renderBackend: RenderBackend, playbackSpeedFactor: Float, volume: Float, isMuted: Boolean
+    ) = runCatching {
         updateStatus(PlayerStatus.Preparing)
 
-        mediaPlayer.events().addMediaPlayerEventListener(eventListener)
-
-        check(mediaPlayer.media().prepare(checkLocation(location = location))) { "Unable to prepare media" }
+        check(mediaPlayer.media().prepare(location)) { "Unable to prepare media" }
 
         check(mediaPlayer.media().parsing().parse()) { "Unable to parse media" }
 
-        var duration = Duration.ZERO
-
-        try {
-            withTimeout(5.seconds) {
-                while (isActive) {
-                    duration = mediaPlayer.media().info().duration().milliseconds
-
-                    if (!duration.isNegative()) break
-
-                    delay(100.milliseconds)
+        val isPrepared = withTimeoutOrNull(5.seconds) {
+            while (currentCoroutineContext().isActive) {
+                if (mediaPlayer.media().parsing().status() == MediaParsedStatus.DONE) {
+                    break
                 }
+
+                delay(100.milliseconds)
             }
-        } catch (_: TimeoutCancellationException) {
-            error("Unable to get media duration")
+
+            true
         }
 
-        val info = mediaPlayer.media().info()
+        checkNotNull(isPrepared) { "Could not prepare VLCJ media player" }
 
-        val location = info.mrl()
+        mediaPlayer.controls().setRate(playbackSpeedFactor)
+
+        mediaPlayer.audio().setVolume((volume * 100).toInt())
+
+        mediaPlayer.audio().isMute = isMuted
+
+        val duration = mediaPlayer.media().info().duration().milliseconds
+
+        val info = mediaPlayer.media().info()
 
         val videoTrack = info.videoTracks().firstOrNull()
 
@@ -163,17 +193,21 @@ class VlcjPlayerController(
         val height = videoTrack?.height()?.takeIf { it > 0 }
 
         if (width != null && height != null) {
-            val target = when (renderTargetType) {
-                RenderTargetType.SKIA -> RenderTarget.Vlcj.Skia(
+            val renderTarget = when (renderBackend) {
+                RenderBackend.SKIA -> RenderTarget.Vlcj.Skia(
                     bufferRenderer = BufferRenderer.create(
                         width = width, height = height
                     )
                 )
 
-                RenderTargetType.SWING -> RenderTarget.Vlcj.Swing(canvas = canvas)
+                RenderBackend.AWT -> RenderTarget.Vlcj.Awt(canvas = canvas)
             }
 
-            setRenderTarget(target = target).getOrThrow()
+            setRenderTarget(renderTarget = renderTarget).getOrThrow()
+
+            if (renderTarget is RenderTarget.Vlcj.Skia) {
+                check(mediaPlayer.media().startPaused(location)) { "Unable to start paused media" }
+            }
         }
 
         val media = PlayerMedia(
@@ -188,19 +222,19 @@ class VlcjPlayerController(
     }
 
     override suspend fun releaseController() = runCatching {
-        checkReadyStatus()
+        updateStatus(PlayerStatus.Releasing)
 
-        mediaPlayer.release()
+        setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
 
-        mediaPlayer.events().removeMediaPlayerEventListener(eventListener)
+        mediaPlayer.controls().stop()
 
-        setRenderTarget(target = RenderTarget.None).getOrThrow()
+        mediaPlayer.media().reset()
 
         updateStatus(PlayerStatus.Empty)
     }
 
     override suspend fun playController() = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             mediaPlayer.controls().play()
 
             updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
@@ -208,27 +242,27 @@ class VlcjPlayerController(
     }
 
     override suspend fun pauseController() = runCatching {
-        checkReadyStatus {
-            if (this !is PlayerStatus.Ready.Playing) return@checkReadyStatus
+        ifReadyStatus {
+            if (this is PlayerStatus.Ready.Playing) {
+                mediaPlayer.controls().pause()
 
-            mediaPlayer.controls().pause()
-
-            updateStatus(PlayerStatus.Ready.Paused(media = media, timestamp = timestamp))
+                updateStatus(PlayerStatus.Ready.Paused(media = media, timestamp = timestamp))
+            }
         }
     }
 
     override suspend fun resumeController() = runCatching {
-        checkReadyStatus {
-            if (this !is PlayerStatus.Ready.Paused) return@checkReadyStatus
+        ifReadyStatus {
+            if (this is PlayerStatus.Ready.Paused) {
+                mediaPlayer.controls().play()
 
-            mediaPlayer.controls().play()
-
-            updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
+                updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
+            }
         }
     }
 
     override suspend fun stopController() = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             mediaPlayer.controls().stop()
 
             updateStatus(PlayerStatus.Ready.Stopped(media = media))
@@ -236,7 +270,7 @@ class VlcjPlayerController(
     }
 
     override suspend fun seekController(millis: Long) = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             updateStatus(PlayerStatus.Ready.Seeking(media = media, timestamp = timestamp))
 
             mediaPlayer.controls().setTime(millis)
@@ -250,10 +284,8 @@ class VlcjPlayerController(
     override suspend fun close() = runCatching {
         super.close()
 
+        setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
+
         mediaPlayer.release()
-
-        (renderTarget.value as? RenderTarget.Vlcj.Skia)?.bufferRenderer?.close()
-
-        Unit
     }
 }

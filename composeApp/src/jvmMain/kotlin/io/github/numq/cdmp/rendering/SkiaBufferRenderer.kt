@@ -27,7 +27,11 @@ class SkiaBufferRenderer(override val width: Int, override val height: Int) : Bu
         check(bytes.size >= minByteSize) { "Invalid render input size" }
 
         Data.makeFromBytes(bytes = bytes).use { buffer ->
+            if (pixmap.isClosed) return
+
             pixmap.reset(info = imageInfo, buffer = buffer, rowBytes = imageInfo.minRowBytes)
+
+            if (surface.isClosed) return
 
             surface.writePixels(pixmap = pixmap, x = 0, y = 0)
 
@@ -62,6 +66,8 @@ class SkiaBufferRenderer(override val width: Int, override val height: Int) : Bu
 
         canvas.translate(backgroundOffsetX, backgroundOffsetY)
 
+        if (surface.isClosed) return@synchronized
+
         surface.draw(canvas = canvas, x = 0, y = 0, Paint().apply {
             imageFilter = ImageFilter.makeBlur(
                 sigmaX = sigma, sigmaY = sigma, mode = FilterTileMode.CLAMP
@@ -87,6 +93,8 @@ class SkiaBufferRenderer(override val width: Int, override val height: Int) : Bu
         canvas.translate(offsetX, offsetY)
 
         canvas.scale(scale, scale)
+
+        if (surface.isClosed) return@synchronized
 
         surface.draw(canvas = canvas, x = 0, y = 0, paint = null)
 

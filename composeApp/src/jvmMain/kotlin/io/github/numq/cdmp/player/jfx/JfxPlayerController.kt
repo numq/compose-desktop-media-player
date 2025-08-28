@@ -8,30 +8,32 @@ import io.github.numq.cdmp.player.PlayerController
 import io.github.numq.cdmp.player.PlayerMedia
 import io.github.numq.cdmp.player.PlayerStatus
 import io.github.numq.cdmp.rendering.BufferRenderer
+import io.github.numq.cdmp.rendering.RenderBackend
 import io.github.numq.cdmp.rendering.RenderTarget
-import io.github.numq.cdmp.rendering.RenderTargetType
 import javafx.beans.value.ChangeListener
 import javafx.scene.media.Media
 import javafx.scene.media.MediaPlayer
 import javafx.scene.media.MediaView
 import javafx.util.Duration
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import com.sun.media.jfxmedia.MediaPlayer as UnderlyingMediaPlayer
 
-class JfxPlayerController : PlayerController() {
-    private val mediaView = MediaView()
-
-    private var mediaPlayer = AtomicReference<MediaPlayer?>(null)
-
+class JfxPlayerController(private val mediaView: MediaView) : PlayerController() {
     private val listener = ChangeListener<Duration> { _, _, updatedTimestamp ->
-        updateTimestamp(updatedTimestamp.toMillis().milliseconds)
+        if (playerStatus.value is PlayerStatus.Ready) {
+            updateTimestamp(updatedTimestamp.toMillis().milliseconds)
+        }
     }
+
+    private val mediaPlayer = AtomicReference<MediaPlayer?>(null)
 
     private val rendererListener = object : VideoRendererListener {
         override fun videoFrameUpdated(event: NewFrameEvent) {
@@ -54,13 +56,11 @@ class JfxPlayerController : PlayerController() {
     }
 
     private fun getUnderlyingPlayer(mediaPlayer: MediaPlayer) =
-        (mediaPlayer.javaClass.getDeclaredMethod("retrieveJfxPlayer").apply {
+        (mediaPlayer::class.java.getDeclaredMethod("retrieveJfxPlayer").apply {
             isAccessible = true
         }.invoke(mediaPlayer) as? UnderlyingMediaPlayer)
 
-    private fun createPlayerMedia(media: Media): PlayerMedia {
-        val location = media.source
-
+    private fun createPlayerMedia(location: String, media: Media): PlayerMedia {
         val width = media.width.takeIf { it > 0 }
 
         val height = media.height.takeIf { it > 0 }
@@ -76,37 +76,33 @@ class JfxPlayerController : PlayerController() {
         )
     }
 
-    override suspend fun setRenderTargetController(target: RenderTarget) = runCatching {
-        when (target) {
-            is RenderTarget.Jfx.Swing -> {
-                target.mediaView.mediaPlayer = mediaPlayer.get()
-
-                target
-            }
-
+    override suspend fun setRenderTargetController(renderTarget: RenderTarget) = runCatching {
+        when (val currentRenderTarget = this.renderTarget.value) {
             is RenderTarget.Jfx.Skia -> {
-                val player = mediaPlayer.get()?.let(::getUnderlyingPlayer)
-
-                mediaView.mediaPlayer = null
-
-                checkNotNull(player) { "Could not get underlying JFX player" }
-
-                player.videoRenderControl.addVideoRendererListener(rendererListener)
-
-                target
-            }
-
-            else -> {
-                mediaView.mediaPlayer = null
-
                 mediaPlayer.get()?.let(::getUnderlyingPlayer)?.videoRenderControl?.removeVideoRendererListener(
                     rendererListener
                 )
 
-                (renderTarget.value as? RenderTarget.Jfx.Skia)?.bufferRenderer?.close()
-
-                RenderTarget.None
+                currentRenderTarget.bufferRenderer.close()
             }
+
+            is RenderTarget.Jfx.Awt -> mediaView.mediaPlayer = null
+
+            else -> Unit
+        }
+
+        when (renderTarget) {
+            is RenderTarget.Jfx.Skia -> {
+                val player = mediaPlayer.get()?.let(::getUnderlyingPlayer)
+
+                checkNotNull(player) { "Could not get underlying JFX player" }
+
+                player.videoRenderControl.addVideoRendererListener(rendererListener)
+            }
+
+            is RenderTarget.Jfx.Awt -> mediaView.mediaPlayer = mediaPlayer.get()
+
+            else -> Unit
         }
     }
 
@@ -114,110 +110,118 @@ class JfxPlayerController : PlayerController() {
         mediaPlayer.get()?.rate = factor.toDouble()
     }
 
-    override suspend fun changeVolumeController(value: Float) = runCatching {
-        mediaPlayer.get()?.volume = state.value.volume.toDouble()
+    override suspend fun changeVolumeController(volume: Float) = runCatching {
+        mediaPlayer.get()?.volume = volume.toDouble()
     }
 
-    override suspend fun toggleMuteController(isMuted: Boolean) = runCatching {
+    override suspend fun changeMuteController(isMuted: Boolean) = runCatching {
         mediaPlayer.get()?.isMute = isMuted
     }
 
-    override suspend fun prepareController(location: String, renderTargetType: RenderTargetType) = runCatching {
-        check(state.value.status is PlayerStatus.Empty) { "Media player is already prepared" }
+    override suspend fun prepareController(
+        location: String, renderBackend: RenderBackend, playbackSpeedFactor: Float, volume: Float, isMuted: Boolean
+    ) = runCatching {
+        requireEmptyStatus {
+            updateStatus(PlayerStatus.Preparing)
 
-        updateStatus(PlayerStatus.Preparing)
+            try {
+                var jfxMedia: Media? = null
 
-        try {
-            val file = File(checkLocation(location = location))
+                withTimeoutOrNull(5.seconds) {
+                    while (currentCoroutineContext().isActive && jfxMedia == null) {
+                        runCatching {
+                            jfxMedia = Media(File(location).toURI().toURL().toExternalForm())
 
-            val player = MediaPlayer(Media(file.toURI().toString())).apply {
-                rate = state.value.playbackSpeedFactor.toDouble()
+                            100.milliseconds
+                        }
+                    }
+                }
 
-                volume = state.value.volume.toDouble()
+                checkNotNull(jfxMedia) { "Could not open JFX media" }
 
-                isMute = state.value.isMuted
+                val player = MediaPlayer(jfxMedia)
 
-                setOnHalted {
-                    if (error != null) {
+                player.currentTimeProperty().addListener(listener)
+
+                player.setOnHalted {
+                    player.error?.let { error ->
                         updateStatus(PlayerStatus.Error(exception = error))
                     }
                 }
-            }
 
-            mediaPlayer.set(player)
+                player.setOnEndOfMedia {
+                    updateReadyStatus {
+                        updateStatus(PlayerStatus.Ready.Completed(media = media))
+                    }
+                }
 
-            player.currentTimeProperty().addListener(listener)
+                val isPrepared = withTimeoutOrNull(5.seconds) {
+                    while (currentCoroutineContext().isActive) {
+                        if (player.status == MediaPlayer.Status.READY) {
+                            break
+                        }
 
-            val media = suspendCoroutine { continuation ->
-                val currentStatus = player.status
-
-                when (currentStatus) {
-                    MediaPlayer.Status.READY -> continuation.resume(createPlayerMedia(media = player.media))
-
-                    MediaPlayer.Status.UNKNOWN, MediaPlayer.Status.STALLED -> player.setOnReady {
-                        continuation.resume(createPlayerMedia(media = player.media))
+                        delay(100.milliseconds)
                     }
 
-                    else -> continuation.resumeWithException(Exception("Unexpected player status: $currentStatus"))
+                    true
                 }
-            }
 
-            player.setOnEndOfMedia {
-                updateReadyStatus {
-                    updateStatus(PlayerStatus.Ready.Completed(media = media))
-                }
-            }
+                checkNotNull(isPrepared) { "Could not prepare JFX media player" }
 
-            val width = media.width?.takeIf { it > 0 }
+                player.rate = playbackSpeedFactor.toDouble()
 
-            val height = media.height?.takeIf { it > 0 }
+                player.volume = volume.toDouble()
 
-            if (width != null && height != null) {
-                val target = when (renderTargetType) {
-                    RenderTargetType.SKIA -> RenderTarget.Jfx.Skia(
-                        bufferRenderer = BufferRenderer.create(
-                            width = width, height = height
+                player.isMute = isMuted
+
+                mediaPlayer.set(player)
+
+                val playerMedia = createPlayerMedia(location = location, media = player.media)
+
+                val width = playerMedia.width
+
+                val height = playerMedia.height
+
+                if (width != null && height != null) {
+                    val renderTarget = when (renderBackend) {
+                        RenderBackend.SKIA -> RenderTarget.Jfx.Skia(
+                            bufferRenderer = BufferRenderer.create(width = width, height = height)
                         )
-                    )
 
-                    RenderTargetType.SWING -> RenderTarget.Jfx.Swing(mediaView = mediaView)
+                        RenderBackend.AWT -> RenderTarget.Jfx.Awt(mediaView = mediaView)
+                    }
+
+                    setRenderTarget(renderTarget = renderTarget).getOrThrow()
                 }
 
-                setRenderTarget(target = target).getOrThrow()
-            }
+                if (renderBackend == RenderBackend.SKIA) {
+                    player.seek(Duration.ZERO)
+                }
 
-            updateStatus(PlayerStatus.Ready.Stopped(media = media))
-        } catch (e: Exception) {
-            updateStatus(PlayerStatus.Error(exception = e))
+                updateStatus(PlayerStatus.Ready.Stopped(media = playerMedia))
+            } catch (e: Exception) {
+                updateStatus(PlayerStatus.Error(exception = e))
+            }
         }
     }
 
     override suspend fun releaseController() = runCatching {
-        checkReadyStatus()
-
         updateStatus(PlayerStatus.Releasing)
 
-        try {
-            mediaPlayer.get()?.let(::getUnderlyingPlayer)?.videoRenderControl?.removeVideoRendererListener(
-                rendererListener
-            )
+        setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
 
-            setRenderTarget(target = RenderTarget.None).getOrThrow()
+        mediaPlayer.getAndSet(null)?.apply {
+            dispose()
 
-            mediaPlayer.getAndSet(null)?.apply {
-                currentTimeProperty()?.removeListener(listener)
-
-                dispose()
-            }
-
-            updateStatus(PlayerStatus.Empty)
-        } catch (e: Exception) {
-            updateStatus(PlayerStatus.Error(exception = e))
+            currentTimeProperty()?.removeListener(listener)
         }
+
+        updateStatus(PlayerStatus.Empty)
     }
 
     override suspend fun playController() = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             mediaPlayer.get()?.play()
 
             updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
@@ -225,27 +229,27 @@ class JfxPlayerController : PlayerController() {
     }
 
     override suspend fun pauseController() = runCatching {
-        checkReadyStatus {
-            if (this !is PlayerStatus.Ready.Playing) return@checkReadyStatus
+        ifReadyStatus {
+            if (this is PlayerStatus.Ready.Playing) {
+                mediaPlayer.get()?.pause()
 
-            mediaPlayer.get()?.pause()
-
-            updateStatus(PlayerStatus.Ready.Paused(media = media, timestamp = timestamp))
+                updateStatus(PlayerStatus.Ready.Paused(media = media, timestamp = timestamp))
+            }
         }
     }
 
     override suspend fun resumeController() = runCatching {
-        checkReadyStatus {
-            if (this !is PlayerStatus.Ready.Paused) return@checkReadyStatus
+        ifReadyStatus {
+            if (this is PlayerStatus.Ready.Paused) {
+                mediaPlayer.get()?.play()
 
-            mediaPlayer.get()?.play()
-
-            updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
+                updateStatus(PlayerStatus.Ready.Playing(media = media, timestamp = timestamp))
+            }
         }
     }
 
     override suspend fun stopController() = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             mediaPlayer.get()?.stop()
 
             updateStatus(PlayerStatus.Ready.Stopped(media = media))
@@ -253,7 +257,7 @@ class JfxPlayerController : PlayerController() {
     }
 
     override suspend fun seekController(millis: Long) = runCatching {
-        checkReadyStatus {
+        ifReadyStatus {
             updateStatus(PlayerStatus.Ready.Seeking(media = media, timestamp = timestamp))
 
             mediaPlayer.get()?.seek(Duration(millis.toDouble()))
@@ -267,9 +271,13 @@ class JfxPlayerController : PlayerController() {
     override suspend fun close() = runCatching {
         super.close()
 
-        mediaPlayer.getAndSet(null)?.dispose()
+        setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
 
-        (renderTarget.value as? RenderTarget.Jfx.Skia)?.bufferRenderer?.close()
+        mediaPlayer.getAndSet(null)?.apply {
+            dispose()
+
+            currentTimeProperty()?.removeListener(listener)
+        }
 
         Unit
     }

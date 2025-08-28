@@ -3,8 +3,8 @@ package io.github.numq.cdmp.player.klarity
 import io.github.numq.cdmp.player.PlayerController
 import io.github.numq.cdmp.player.PlayerMedia
 import io.github.numq.cdmp.player.PlayerStatus
+import io.github.numq.cdmp.rendering.RenderBackend
 import io.github.numq.cdmp.rendering.RenderTarget
-import io.github.numq.cdmp.rendering.RenderTargetType
 import io.github.numq.klarity.player.KlarityPlayer
 import io.github.numq.klarity.probe.ProbeManager
 import io.github.numq.klarity.renderer.Renderer
@@ -61,48 +61,51 @@ class KlarityPlayerController(private val klarityPlayer: KlarityPlayer) : Player
         }
     }
 
-    override suspend fun setRenderTargetController(target: RenderTarget) = runCatching {
+    override suspend fun setRenderTargetController(renderTarget: RenderTarget) = runCatching {
         klarityPlayer.detachRenderer().getOrThrow()?.close()?.getOrThrow()
 
-        when (target) {
-            is RenderTarget.Klarity -> {
-                klarityPlayer.attachRenderer(renderer = target.renderer).getOrThrow()
+        when (renderTarget) {
+            is RenderTarget.Klarity -> klarityPlayer.attachRenderer(renderer = renderTarget.renderer).getOrThrow()
 
-                target
-            }
-
-            else -> RenderTarget.None
+            else -> Unit
         }
     }
 
-    override suspend fun changePlaybackSpeedController(factor: Float) =
-        klarityPlayer.changeSettings(settings = klarityPlayer.settings.value.copy(playbackSpeedFactor = factor))
+    override suspend fun changePlaybackSpeedController(factor: Float) = klarityPlayer.changeSettings(
+        settings = klarityPlayer.settings.value.copy(playbackSpeedFactor = factor)
+    )
 
-    override suspend fun changeVolumeController(value: Float) =
-        klarityPlayer.changeSettings(settings = klarityPlayer.settings.value.copy(volume = value))
+    override suspend fun changeVolumeController(volume: Float) =
+        klarityPlayer.changeSettings(settings = klarityPlayer.settings.value.copy(volume = volume))
 
-    override suspend fun toggleMuteController(isMuted: Boolean) =
+    override suspend fun changeMuteController(isMuted: Boolean) =
         klarityPlayer.changeSettings(settings = klarityPlayer.settings.value.copy(isMuted = isMuted))
 
-    override suspend fun prepareController(location: String, renderTargetType: RenderTargetType) = runCatching {
-        ProbeManager.probe(location = location).getOrNull()?.videoFormat?.let { (width, height) ->
-            Renderer.create(width = width, height = height).getOrNull()?.let { renderer ->
-                setRenderTarget(target = RenderTarget.Klarity(renderer = renderer)).getOrThrow()
-            }
+    override suspend fun prepareController(
+        location: String, renderBackend: RenderBackend, playbackSpeedFactor: Float, volume: Float, isMuted: Boolean
+    ) = runCatching {
+        val renderer = ProbeManager.probe(location = location).getOrThrow().videoFormat?.let { (width, height) ->
+            Renderer.create(width = width, height = height).getOrThrow()
         }
 
-        klarityPlayer.prepare(location = checkLocation(location = location)).onFailure {
-            setRenderTarget(target = RenderTarget.None).getOrThrow()
+        if (renderer != null) {
+            setRenderTarget(renderTarget = RenderTarget.Klarity(renderer = renderer)).getOrThrow()
+        }
+
+        klarityPlayer.prepare(location = location).onFailure {
+            setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
+        }.mapCatching {
+            changePlaybackSpeedController(factor = playbackSpeedFactor).getOrThrow()
+
+            changeVolumeController(volume = volume).getOrThrow()
+
+            changeMuteController(isMuted = isMuted).getOrThrow()
         }.getOrThrow()
     }
 
-    override suspend fun releaseController() = runCatching {
-        try {
-            klarityPlayer.release().getOrThrow()
-        } finally {
-            setRenderTarget(target = RenderTarget.None).getOrThrow()
-        }
-    }
+    override suspend fun releaseController() = setRenderTarget(renderTarget = RenderTarget.None).mapCatching {
+        klarityPlayer.release()
+    }.getOrThrow()
 
     override suspend fun playController() = klarityPlayer.play()
 
@@ -123,8 +126,8 @@ class KlarityPlayerController(private val klarityPlayer: KlarityPlayer) : Player
 
         coroutineScope.cancel()
 
-        klarityPlayer.detachRenderer().getOrNull()?.close()?.getOrThrow()
+        setRenderTarget(renderTarget = RenderTarget.None).getOrThrow()
 
-        klarityPlayer.close().getOrThrow()
+        klarityPlayer.release().getOrThrow()
     }
 }

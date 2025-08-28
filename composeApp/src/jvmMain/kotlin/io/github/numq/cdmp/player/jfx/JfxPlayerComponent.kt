@@ -15,10 +15,13 @@ import javafx.scene.layout.StackPane
 @Composable
 fun JfxPlayerComponent(renderTarget: RenderTarget.Jfx) {
     when (renderTarget) {
-        is RenderTarget.Jfx.Swing -> with(renderTarget) {
+        is RenderTarget.Jfx.Skia -> BufferRendererComponent(
+            modifier = Modifier.fillMaxSize(), bufferRenderer = renderTarget.bufferRenderer
+        )
+
+        is RenderTarget.Jfx.Awt -> with(renderTarget) {
             SwingPanel(
-                background = Color.Black,
-                factory = {
+                background = Color.Black, factory = {
                     JFXPanel().apply {
                         Platform.runLater {
                             scene = Scene(StackPane(mediaView)).apply {
@@ -36,14 +39,8 @@ fun JfxPlayerComponent(renderTarget: RenderTarget.Jfx) {
                             }
                         }
                     }
-                },
-                modifier = Modifier.fillMaxSize()
+                }, modifier = Modifier.fillMaxSize()
             )
         }
-
-        is RenderTarget.Jfx.Skia -> BufferRendererComponent(
-            modifier = Modifier.fillMaxSize(),
-            bufferRenderer = renderTarget.bufferRenderer
-        )
     }
 }

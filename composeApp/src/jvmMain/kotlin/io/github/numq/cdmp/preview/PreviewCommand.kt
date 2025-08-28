@@ -1,46 +1,36 @@
 package io.github.numq.cdmp.preview
 
-import io.github.numq.cdmp.player.PlayerState
+import io.github.numq.cdmp.playback.PlaybackState
 import kotlin.time.Duration
 
 sealed interface PreviewCommand {
-    sealed interface Interaction : PreviewCommand {
-        data object ShowFileChooser : Interaction
-
-        data object HideFileChooser : Interaction
-
-        data object ShowInputDialog : Interaction
-
-        data object HideInputDialog : Interaction
-
-        data object SetDragAndDropActive : Interaction
-
-        data object SetDragAndDropInactive : Interaction
-    }
-
     sealed interface Playback : PreviewCommand {
-        data class ChangePlaybackSpeed(val factor: Float) : Playback
+        sealed interface Speed : Playback {
+            data object Increase : Speed
+
+            data object Decrease : Speed
+
+            data object Reset : Speed
+        }
 
         data class ChangeVolume(val value: Float) : Playback
 
-        data class ToggleMute(val isMuted: Boolean) : Playback
+        data object ToggleMute : Playback
 
-        data class Prepare(val location: String) : Playback
+        sealed interface Controls : Playback {
+            data object Play : Controls
 
-        data object Release : Playback
+            data object Pause : Controls
 
-        data object Play : Playback
+            data object Resume : Controls
 
-        data object Pause : Playback
+            data object Stop : Controls
 
-        data object Resume : Playback
-
-        data object Stop : Playback
-
-        data class SeekTo(val timestamp: Duration) : Playback
+            data class SeekTo(val timestamp: Duration) : Controls
+        }
     }
 
     data object Initialize : PreviewCommand
 
-    data class HandlePlayerState(val playerState: PlayerState) : PreviewCommand
+    data class HandlePlaybackState(val playbackState: PlaybackState) : PreviewCommand
 }

@@ -29,6 +29,7 @@ kotlin {
             implementation("${libs.javafx.media.get()}:win")
             implementation("${libs.javafx.swing.get()}:win")
             implementation(libs.vlcj)
+            implementation(libs.vlcj.natives)
             implementation(files("../libs/klarity-windows-x64-1.0.6.jar"))
         }
         commonTest.dependencies {
