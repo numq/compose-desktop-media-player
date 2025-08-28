@@ -38,7 +38,7 @@ fun PlayerControls(
     content: @Composable () -> Unit
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (isOverlaySupported) {
+        if (playbackState.playerStatus !is PlayerStatus.Error && isOverlaySupported) {
             content()
         }
         Column(
@@ -46,8 +46,13 @@ fun PlayerControls(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
         ) {
-            if (!isOverlaySupported) {
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            when {
+                playbackState.playerStatus is PlayerStatus.Error -> Text(
+                    playbackState.playerStatus.exception.localizedMessage ?: "Unknown playback error",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+
+                !isOverlaySupported -> Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     content()
                 }
             }

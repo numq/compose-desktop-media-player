@@ -102,8 +102,12 @@ class SkiaBufferRenderer(override val width: Int, override val height: Int) : Bu
     }
 
     override fun close() = synchronized(lock) {
-        surface.close()
+        if (!surface.isClosed) {
+            surface.close()
+        }
 
-        pixmap.close()
+        if (!pixmap.isClosed) {
+            pixmap.close()
+        }
     }
 }
