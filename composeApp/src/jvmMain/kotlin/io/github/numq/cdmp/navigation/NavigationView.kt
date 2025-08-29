@@ -167,7 +167,7 @@ fun NavigationView(feature: NavigationFeature = koinInject()) {
     exceptions.firstOrNull()?.let { exception ->
         BasicAlertDialog(onDismissRequest = { exceptions.removeFirstOrNull() }, content = {
             Surface(
-                modifier = Modifier.wrapContentWidth().wrapContentHeight(), shape = MaterialTheme.shapes.large
+                modifier = Modifier.wrapContentSize(), shape = MaterialTheme.shapes.large
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
