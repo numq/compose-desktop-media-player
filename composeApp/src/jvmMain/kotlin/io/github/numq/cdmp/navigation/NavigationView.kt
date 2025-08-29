@@ -143,8 +143,7 @@ fun NavigationView(feature: NavigationFeature = koinInject()) {
                     }
 
                     is LocationStatus.Empty -> Text(
-                        "Drag your media file here",
-                        style = MaterialTheme.typography.headlineLarge
+                        "Drag your media file here", style = MaterialTheme.typography.headlineLarge
                     )
 
                     else -> CircularProgressIndicator()
@@ -167,7 +166,7 @@ fun NavigationView(feature: NavigationFeature = koinInject()) {
     exceptions.firstOrNull()?.let { exception ->
         BasicAlertDialog(onDismissRequest = { exceptions.removeFirstOrNull() }, content = {
             Surface(
-                modifier = Modifier.fillMaxSize(.5f), shape = MaterialTheme.shapes.large
+                modifier = Modifier.fillMaxWidth(.75f).fillMaxHeight(.5f), shape = MaterialTheme.shapes.large
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
