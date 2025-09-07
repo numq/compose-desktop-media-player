@@ -1,4 +1,14 @@
-# Compose Desktop Media Player
+<h1 align="center">Compose Desktop Media Player</h1>
+
+<div align="center" style="display: grid; justify-content: center;">
+
+|                                                                  🌟                                                                   |                  Support this project                   |               
+|:-------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------:|
+|  <img src="https://raw.githubusercontent.com/ErikThiart/cryptocurrency-icons/master/32/bitcoin.png" alt="Bitcoin (BTC)" width="32"/>  | <code>bc1qs6qq0fkqqhp4whwq8u8zc5egprakvqxewr5pmx</code> | 
+| <img src="https://raw.githubusercontent.com/ErikThiart/cryptocurrency-icons/master/32/ethereum.png" alt="Ethereum (ETH)" width="32"/> | <code>0x3147bEE3179Df0f6a0852044BFe3C59086072e12</code> |
+|  <img src="https://raw.githubusercontent.com/ErikThiart/cryptocurrency-icons/master/32/tether.png" alt="USDT (TRC-20)" width="32"/>   |     <code>TKznmR65yhPt5qmYCML4tNSWFeeUkgYSEV</code>     |
+
+</div>
 
 This repository contains examples of implementing a media (audio/video) player for Jetpack Compose Desktop using various
 libraries
