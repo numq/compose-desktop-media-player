@@ -38,6 +38,7 @@ fun main() {
         ApplicationTheme(isSystemInDarkTheme) {
             WindowDecoration(
                 isDarkTheme = isSystemInDarkTheme,
+                title = APP_NAME,
                 initialWindowSize = minimumWindowSize,
                 minimumWindowSize = minimumWindowSize,
                 isTransparent = false,
@@ -47,10 +48,10 @@ fun main() {
 
                     exitApplication()
                 },
-                title = {
+                titleContent = {
                     Text(APP_NAME, color = MaterialTheme.colorScheme.primary)
                 },
-                content = {
+                windowContent = {
                     NavigationView()
                 })
         }

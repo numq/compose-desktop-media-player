@@ -15,6 +15,7 @@ import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
@@ -35,6 +36,8 @@ import kotlin.math.roundToInt
 fun ApplicationScope.WindowDecoration(
     isDarkTheme: Boolean,
     setIsDarkTheme: (Boolean) -> Unit = {},
+    title: String = "Untitled",
+    icon: Painter? = null,
     windowDecorationHeight: Dp = 32.dp,
     windowDecorationColors: WindowDecorationColors = WindowDecorationColors(),
     initialWindowPosition: WindowPosition? = null,
@@ -49,9 +52,9 @@ fun ApplicationScope.WindowDecoration(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     onCloseRequest: () -> Unit = ::exitApplication,
-    title: @Composable RowScope.() -> Unit,
-    controls: @Composable RowScope.() -> Unit = {},
-    content: @Composable (ComposeWindow.(WindowDecorationState) -> Unit),
+    titleContent: @Composable RowScope.() -> Unit,
+    controlsContent: @Composable RowScope.() -> Unit = {},
+    windowContent: @Composable (ComposeWindow.(WindowDecorationState) -> Unit),
 ) {
     initialWindowPosition?.run {
         require(x >= 0.dp && y >= 0.dp) { "Initial window position must be positive" }
@@ -91,6 +94,8 @@ fun ApplicationScope.WindowDecoration(
         onCloseRequest = onCloseRequest,
         state = windowState,
         visible = isVisible,
+        title = title,
+        icon = icon,
         undecorated = true,
         transparent = isTransparent,
         resizable = isResizable,
@@ -238,14 +243,14 @@ fun ApplicationScope.WindowDecoration(
                         horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        title()
+                        titleContent()
                     }
                     Row(
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        controls()
+                        controlsContent()
 
                         windowDecorationColors.switchSchemeButton().takeIf(Color::isSpecified)?.let { tint ->
                             Box(
@@ -295,9 +300,7 @@ fun ApplicationScope.WindowDecoration(
                                     onCloseRequest()
                                 }, contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.Close, null, tint = tint
-                                )
+                                Icon(Icons.Default.Close, null, tint = tint)
                             }
                         }
                     }
@@ -307,7 +310,7 @@ fun ApplicationScope.WindowDecoration(
                     modifier = Modifier.fillMaxWidth().height(contentHeight)
                         .background(windowDecorationColors.content())
                 ) {
-                    content(window, state)
+                    windowContent(window, state)
                 }
             }
         }
