@@ -30,7 +30,7 @@ kotlin {
             implementation("${libs.javafx.swing.get()}:win")
             implementation(libs.vlcj)
             implementation(libs.vlcj.natives)
-            implementation(files("../libs/klarity-windows-x64-1.0.6.jar"))
+            implementation(files("../libs/klarity-windows-x64-1.1.0.jar"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
