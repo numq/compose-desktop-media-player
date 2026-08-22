@@ -78,7 +78,7 @@ data class PlaybackState(
 
 ## License
 
-Apache-2.0 License - see [LICENSE](LICENSE) file for details.
+MIT - see [LICENSE](LICENSE) file for details.
 
 ---
 
